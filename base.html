@@ -1,0 +1,68 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Інтернет-магазин{% endblock %}</title>
+    <link rel="icon" href="{% static 'main/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'main/style.css' %}">
+</head>
+<body>
+    
+    <div class="top-bar">
+      <div class="container top-bar-content">
+        <span class="scrolling-text" aria-hidden="true">
+            Постійні акції та знижки! При замовленні на 2000грн-доставка безкоштовно! 15% знижки імениннику!&nbsp;&nbsp;&nbsp;&nbsp;
+            ★&nbsp;&nbsp;&nbsp;&nbsp;
+            Постійні акції та знижки! При замовленні на 2000грн-доставка безкоштовно! 15% знижки імениннику!&nbsp;&nbsp;&nbsp;&nbsp;
+            ★
+        </span>
+      </div>
+    </div>
+    
+    <header>
+        <div class="container main-nav">
+            <a href="{% url 'main:product-list' %}" class="logo-link">
+                <img src="{% static 'main/favicon.ico' %}" alt="LadiesDream Logo" class="header-logo">
+                <span class="site-title">LadiesDream</span>
+            </a>
+
+            <nav class="primary-nav">
+                <ul>
+                    <li><a href="{% url 'main:product-list' %}">Каталог</a></li>
+                    <li><a href="#">Про нас</a></li>
+                    <li><a href="#">Контакти</a></li>
+                    <li><a href="#">Кошик 🛒</a></li> 
+                </ul>
+            </nav>
+            
+            <nav class="user-nav">
+                {% if user.is_authenticated %}
+                    {% if user.is_staff %}
+                        <a href="{% url 'admin:index' %}" class="btn-admin">Адмін панель</a>
+                    {% endif %}
+                    <a href="{% url 'accounts:profile' %}" class="btn-profile">Профіль</a> 
+                    <a href="{% url 'accounts:logout' %}" class="btn-logout">Вийти</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn-login">Вхід</a>
+                    <a href="{% url 'accounts:register' %}" class="btn-register">Реєстрація</a>
+                {% endif %}
+            </nav>
+            
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2025 Ladies Dream. Всі права захищені.</p>
+        </div>
+    </footer>
+</body>
+</html>

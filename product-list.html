@@ -1,0 +1,104 @@
+{% extends 'main/base.html' %}
+{% load static %}
+{% load math_filters %}
+
+{% block title %}
+    {% if search_query %}
+        Пошук: "{{ search_query }}"
+    {% elif category %}
+        {{ category.name }}
+    {% else %}
+        Каталог товарів
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="catalog-header">
+        <h1>
+            {% if search_query %}
+                Результати пошуку: "{{ search_query }}"
+            {% elif category %}
+                {{ category.name }}
+            {% else %}
+                Каталог товарів
+            {% endif %}
+        </h1>
+    </div>
+
+    {% include 'main/components/search_form.html' %}
+    
+    {% include 'main/components/sort_buttons.html' %}
+
+    <div class="product-list">
+     {% for product in products %}
+        {% with delay=forloop.counter0|mul:0.1|add:0.8 %}
+        
+            {% include 'main/components/product_card.html' with product=product delay=delay %}
+            
+        {% endwith %}
+    
+     {% empty %}
+        <div class="no-products-found">
+            {% if search_query %}
+                <h3>На жаль, за вашим запитом "{{ search_query }}" нічого не знайдено.</h3>
+                <p>Спробуйте змінити пошуковий запит або <a href="{% url 'main:product-list' %}">переглянути весь каталог</a>.</p>
+            {% else %}
+                <h3>У цій категорії поки що немає товарів.</h3>
+                <p>Але вони скоро з'являться!</p>
+            {% endif %}
+        </div>
+     {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination compact-pagination">
+        <ul class="pagination-list">
+            
+            {% if page_obj.has_previous %}
+            <li>
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="page-arrow">&laquo;</a>
+            </li>
+            {% else %}
+            <li class="disabled">
+                <span class="page-arrow">&laquo;</span>
+            </li>
+            {% endif %}
+
+            {% for num in paginator.page_range %}
+                
+                {% if num == 1 or num == paginator.num_pages or num > page_obj.number|add:'-2' and num < page_obj.number|add:'2' %}
+                    
+                    {% if page_obj.number == num %}
+                        <li class="active"><span class="page-num">{{ num }}</span></li>
+                    {% else %}
+                        <li>
+                            <a href="?page={{ num }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                               class="page-num">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                
+                {% elif num == page_obj.number|add:'-3' and num > 1 %}
+                    <li><span class="page-dots">...</span></li>
+                {% elif num == page_obj.number|add:'3' and num < paginator.num_pages %}
+                    <li><span class="page-dots">...</span></li>
+                {% endif %}
+                
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li>
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="page-arrow">&raquo;</a>
+            </li>
+            {% else %}
+            <li class="disabled">
+                <span class="page-arrow">&raquo;</span>
+            </li>
+            {% endif %}
+            
+        </ul>
+    </div>
+    {% endif %}
+
+{% endblock %}

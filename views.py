@@ -1,79 +1,89 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from main.models import Category
-from django.contrib.auth.decorators import login_required
-from django.urls import reverse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.db.models import F, Case, When, IntegerField
+from .models import Product, Category
+from django.db.models import Q, F
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 def get_categories():
     return Category.objects.filter(is_active=True).order_by('name')
 
 
-def login_view(request):
+def product_list(request, category_slug=None):
+    """
+    Відображає список товарів з фільтрацією, пошуком, сортуванням та пагінацією.
+    """
     categories = get_categories()
+    products = Product.objects.filter(is_available=True)
+    category = None
+
+    if category_slug:
+        category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=category)
+
+    search_query = request.GET.get('q')
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(category__name__icontains=search_query)
+        ).distinct()
+
+    sort_by = request.GET.get('sort', 'new')
     
-    if request.user.is_authenticated:
-        return redirect('main:product-list')
+    if sort_by == 'new':
+        products = products.order_by('-created_at')
+    elif sort_by == 'old':
+        products = products.order_by('created_at')
+    elif sort_by == 'popular':
+        products = products.order_by('-views')
+    elif sort_by == 'price_low':
+        products = products.order_by('price')
+    elif sort_by == 'price_high':
+        products = products.order_by('-price')
+    elif sort_by == 'name':
+        products = products.order_by('name')
+
+
+    paginator = Paginator(products, 8) 
+    page_number = request.GET.get('page')
     
-    if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            
-            next_url = request.POST.get('next') or reverse('main:product-list')
-            return redirect(next_url)
-    else:
-        form = AuthenticationForm()
+    try:
+        products_on_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        products_on_page = paginator.page(1)
+    except EmptyPage:
+        products_on_page = paginator.page(paginator.num_pages)
 
-    context = {'form': form, 'categories': categories}
-    return render(request, 'accounts/login.html', context)
+    context = {
+        'products': products_on_page, 
+        'page_obj': products_on_page, 
+        'paginator': paginator,
+        'categories': categories,
+        'category': category,
+        'current_sort': sort_by,
+        'search_query': search_query,
+    }
+    return render(request, 'main/product-list.html', context)
 
 
-def logout_view(request):
-    logout(request)
-    return redirect('main:product-list')
-
-
-def register_view(request):
-    categories = get_categories()
+def product_detail(request, id, slug):
+    """
+    Відображає деталі товару, збільшує лічильник переглядів та показує схожі товари.
+    """
+    product = get_object_or_404(Product, id=id, slug=slug, is_available=True)
     
-    if request.user.is_authenticated:
-        return redirect('main:product-list')
+    product.views = F('views') + 1
+    product.save(update_fields=['views'])
+    product.refresh_from_db()
     
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user) # Автоматичний вхід після реєстрації
-            return redirect('main:product-list')
-    else:
-        form = UserCreationForm()
-        
-    context = {'form': form, 'categories': categories}
-    return render(request, 'accounts/register.html', context)
-
-
-@login_required
-def profile_view(request):
-    categories = get_categories()
-    context = {'categories': categories}
-    return render(request, 'accounts/profile.html', context)
-
-
-# ------------------- Middleware -------------------
-
-class AdminAccessRedirectMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if request.path.startswith('/admin/'):
-            user = request.user
-            
-            # Додаємо перевірку, щоб дозволити доступ до сторінки входу в адмінку
-            if not user.is_authenticated or not user.is_staff:
-                if request.path != reverse('admin:login'):
-                    return redirect('main:product-list')
-                    
-        return self.get_response(request)
+    related_products = Product.objects.filter(
+        category=product.category, 
+        is_available=True
+    ).exclude(id=product.id).order_by('?')[:4]
+    
+    context = {
+        'product': product,
+        'related_products': related_products,
+        'categories': get_categories(),
+    }
+    return render(request, 'main/product-detail.html', context)

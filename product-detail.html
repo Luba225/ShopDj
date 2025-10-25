@@ -1,0 +1,17 @@
+{% extends 'main/base.html' %}
+{% block title %}Деталі товару: {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="product-detail-container">
+    <div class="product-images">
+        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+    </div>
+    <div class="product-info">
+        <h1>{{ product.name }}</h1>
+        <p class="price">{{ product.price }} грн</p>
+        <p class="description">{{ product.description|linebreaks }}</p>
+        <button class="pink-button">Додати до кошика</button>
+        <a href="{% url 'main:product-list' %}" class="back-link">← Повернутися до каталогу</a>
+    </div>
+</div>
+{% endblock %}
