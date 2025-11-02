@@ -1,46 +1,9 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from .models import Category, Product
+from .models import Review
 
-def image_tag_html(obj):
-    if obj.image:
-        return format_html(
-            '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 5px;" />'.format(obj.image.url)
-        )
-    return "Немає зображення"
-image_tag_html.short_description = 'Мініатюра'
-
-
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "is_active", image_tag_html)
-    list_filter = ("is_active",)
-    search_fields = ("name",)
-    prepopulated_fields = {"slug": ("name", )}
-    list_editable = ("is_active",)
-
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "name", "category", "price", "is_available", 
-        "featured", "views", "created_at", image_tag_html
-    )
-    list_filter = ("category", "is_available", "featured", "created_at")
-    search_fields = ("name", "description")
-    prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "is_available", "featured")
-    ordering = ("-created_at",)
-    fieldsets = (
-        ('Основна інформація', {
-            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
-        }),
-        ('Контент', {
-            'fields': ('description', 'detailed_description', 'image') 
-        }),
-        ('Статистика', {
-            'fields': ('views',),
-            'classes': ('collapse',)
-        }),
-    )
-    prepopulated_fields = {'slug': ('name',)}
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ('product', 'user', 'rating', 'created_at')
+    list_filter = ('rating', 'created_at')
+    search_fields = ('content', 'user__username', 'product__name')
+    readonly_fields = ('created_at',)
