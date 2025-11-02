@@ -1,0 +1,60 @@
+{% extends 'main/base.html' %}
+{% load static %} {% block title %}Оформлення замовлення{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'main/order.css' %}">
+
+<div class="order-checkout-container">
+    <h1 class="section-header">Оформлення замовлення</h1>
+    
+    <div class="checkout-grid">
+        
+        <div class="delivery-info-section">
+            <h2 class="section-title">Ваші дані</h2>
+            <form action="{% url 'orders:order_create' %}" method="post" class="checkout-form">
+                {% csrf_token %}
+                
+                {% for field in form %}
+                    <div class="form-group">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.errors %}
+                            <span class="error-message">{{ field.errors }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                
+                <button type="submit" class="pink-button btn-checkout">
+                    Підтвердити замовлення
+                </button>
+            </form>
+        </div>
+        
+        <div class="cart-summary-section">
+            <h2 class="section-title">Ваше замовлення ({{ cart|length }} товар{{ cart|length|pluralize:'ів,у,и' }})</h2>
+            
+            <ul class="order-items-list">
+                {% for item in cart %}
+                    <li class="order-item">
+                        <span class="item-name">
+                            {{ item.product.name }}
+                        </span>
+                        <span class="item-quantity-price">
+                            {{ item.quantity }} x {{ item.price }} грн
+                        </span>
+                        <span class="item-total">{{ item.total_price }} грн</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            
+            <div class="order-total">
+                <span class="total-label">Загальна вартість:</span>
+                <span class="total-amount">{{ cart.get_total_price }} грн</span>
+            </div>
+            
+        </div>
+        
+    </div>
+
+</div>
+{% endblock %}
