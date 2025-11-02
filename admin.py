@@ -1,46 +1,44 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from .models import Category, Product
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from django.utils.safestring import mark_safe
+from .models import Profile
 
-def image_tag_html(obj):
-    if obj.image:
-        return format_html(
-            '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 5px;" />'.format(obj.image.url)
-        )
-    return "Немає зображення"
-image_tag_html.short_description = 'Мініатюра'
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = 'Профіль'
+    
+    # Виводимо аватар
+    fields = ('avatar', 'avatar_preview')
+    readonly_fields = ('avatar_preview',)
+
+    def avatar_preview(self, obj):
+        if obj.avatar:
+            return mark_safe(f'<img src="{obj.avatar.url}" style="max-height: 100px; border-radius: 5px;" />')
+        return "Немає зображення"
+    avatar_preview.short_description = "Мініатюра"
 
 
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "is_active", image_tag_html)
-    list_filter = ("is_active",)
-    search_fields = ("name",)
-    prepopulated_fields = {"slug": ("name", )}
-    list_editable = ("is_active",)
+class UserAdmin(BaseUserAdmin):
+    inlines = (ProfileInline,)
 
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "name", "category", "price", "is_available", 
-        "featured", "views", "created_at", image_tag_html
+        'username', 
+        'email', 
+        'first_name', 
+        'last_name', 
+        'is_staff', 
+        'profile_avatar_thumbnail'
     )
-    list_filter = ("category", "is_available", "featured", "created_at")
-    search_fields = ("name", "description")
-    prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "is_available", "featured")
-    ordering = ("-created_at",)
-    fieldsets = (
-        ('Основна інформація', {
-            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
-        }),
-        ('Контент', {
-            'fields': ('description', 'detailed_description', 'image') 
-        }),
-        ('Статистика', {
-            'fields': ('views',),
-            'classes': ('collapse',)
-        }),
-    )
-    prepopulated_fields = {'slug': ('name',)}
+    
+    def profile_avatar_thumbnail(self, obj):
+        if hasattr(obj, 'profile') and obj.profile.avatar:
+            return mark_safe(f'<img src="{obj.profile.avatar.url}" width="30" height="30" style="border-radius: 50%; object-fit: cover;" />')
+        return "-"
+    
+    profile_avatar_thumbnail.short_description = "Аватар"
+
+
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)

@@ -1,34 +1,55 @@
-{% extends 'main/base.html' %} 
-{% block title %}Профіль - {{ user.username }}{%endblock %} {% block content %}
-<div class="profile-container">
-  <h1>Профіль користувача</h1>
- 
-  <div class="profile-info">
-    <div class="profile-item">
-      <strong>Ім'я користувача:</strong>
-      <span>{{ user.username }}</span>
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Профіль користувача{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'main/account_style.css' %}">
+<link rel="stylesheet" href="{% static 'main/profile_styles.css' %}"> <div class="account-container">
+    <h1 class="section-header">Профіль користувача</h1>
+    
+    <div class="tabs-container">
+        <div class="profile-nav">
+            <a href="{% url 'accounts:profile' %}" class="nav-item active">
+                Профіль
+            </a>
+            <a href="{% url 'accounts:order_history' %}" class="nav-item">
+                Мої Замовлення
+            </a>
+        </div>
+
+        <div class="content-panel profile-panel">
+            
+            <div class="profile-header-info">
+                <div class="avatar-container">
+                  {% if user.profile.avatar %}
+                     <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }} Avatar" class="user-avatar real-image">
+                  {% else %}
+                     <span class="user-avatar"><i class="fas fa-user"></i></span>
+                  {% endif %}
+                </div>
+                
+                <div class="user-details-list">
+                    <p><strong>Ім'я користувача:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {% if user.email %}{{ user.email }}{% else %}Не вказано{% endif %}</p>
+                    <p><strong>Дата реєстрації:</strong> {{ user.date_joined|date:"d.m.Y H:i" }}</p>
+                    <p><strong>Останній вхід:</strong> {{ user.last_login|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+
+            <hr>
+            
+            <div class="profile-actions">
+                <a href="{% url 'main:product-list' %}" class="btn btn-sm action-btn primary-action">
+                    <i class="fas fa-shopping-bag"></i> Повернутися до магазину
+                </a>
+                
+                <a href="{% url 'accounts:logout' %}" class="btn btn-sm action-btn secondary-action">
+                  <i class="fas fa-sign-out-alt"></i> Вийти
+                </a>
+            </div>
+            
+        </div>
     </div>
- 
-    <div class="profile-item">
-      <strong>Email:</strong>
-      <span>{{ user.email|default:"Не вказано" }}</span>
-    </div>
- 
-    <div class="profile-item">
-      <strong>Дата реєстрації:</strong>
-      <span>{{ user.date_joined|date:"d.m.Y H:i" }}</span>
-    </div>
- 
-    <div class="profile-item">
-      <strong>Останній вхід:</strong>
-      <span>{{ user.last_login|date:"d.m.Y H:i" }}</span>
-    </div>
-  </div>
- 
-  <div class="profile-actions">
-    <a href="{% url 'main:product-list' %}" class="btn-secondary">Повернутися до магазину</a>
-    <a href="{% url 'accounts:logout' %}" class="btn-danger">ВИЙТИ</a>
-  </div>
 </div>
 {% endblock %}
- 

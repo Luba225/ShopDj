@@ -1,129 +1,93 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.db.models import F, Case, When, IntegerField
-from .models import Product, Category
-from django.db.models import Q, F
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Avg
-from reviews.forms import ReviewForm
-from cart.forms import CartAddProductForm
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from main.models import Category
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.shortcuts import render
-
-
-def about_view(request):
-    """Сторінка 'Про нас'."""
-    return render(request, 'main/about.html')
-
-def contact_view(request):
-    """Сторінка 'Контакти'."""
-    return render(request, 'main/contact.html')
+from django.urls import reverse
+from orders.models import Order
+from orders.models import OrderItem
 
 def get_categories():
     return Category.objects.filter(is_active=True).order_by('name')
 
 
-def product_list(request, category_slug=None):
-    """
-    Відображає список товарів з фільтрацією, пошуком, сортуванням та пагінацією.
-    """
+def login_view(request):
     categories = get_categories()
-    products = Product.objects.filter(is_available=True)
-    category = None
-    cart_product_form = CartAddProductForm()
-
-    if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
-
-    search_query = request.GET.get('q')
-    if search_query:
-        products = products.filter(
-            Q(name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(category__name__icontains=search_query)
-        ).distinct()
-
-    sort_by = request.GET.get('sort', 'new')
     
-    if sort_by == 'new':
-        products = products.order_by('-created_at')
-    elif sort_by == 'old':
-        products = products.order_by('created_at')
-    elif sort_by == 'popular':
-        products = products.order_by('-views')
-    elif sort_by == 'price_low':
-        products = products.order_by('price')
-    elif sort_by == 'price_high':
-        products = products.order_by('-price')
-    elif sort_by == 'name':
-        products = products.order_by('name')
-
-
-    paginator = Paginator(products, 9)
-    page_number = request.GET.get('page')
+    if request.user.is_authenticated:
+        return redirect('main:product-list')
     
-    try:
-        products_on_page = paginator.page(page_number)
-    except PageNotAnInteger:
-        products_on_page = paginator.page(1)
-    except EmptyPage:
-        products_on_page = paginator.page(paginator.num_pages)
-
-    context = {
-        'products': products_on_page, 
-        'page_obj': products_on_page, 
-        'paginator': paginator,
-        'categories': categories,
-        'category': category,
-        'current_sort': sort_by,
-        'search_query': search_query,
-        'cart_product_form': cart_product_form,
-    }
-    return render(request, 'main/product-list.html', context)
-
-
-def product_detail(request, id, slug):
-    """
-    Відображає деталі товару, збільшує лічильник переглядів та показує схожі товари.
-    """
-    product = get_object_or_404(Product, id=id, slug=slug, is_available=True)
-    reviews = product.reviews.select_related('user').all()
-    average_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-    if request.method == 'POST' and request.user.is_authenticated:
-        form = ReviewForm(request.POST)
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
-            new_review = form.save(commit=False)
-            new_review.product = product
-            new_review.user = request.user
+            user = form.get_user()
+            login(request, user)
             
-            try:
-                new_review.save()
-                messages.success(request, "Ваш відгук успішно додано!")
-            except Exception:
-                messages.error(request, "Ви вже залишили відгук на цей товар. Ви можете залишити лише один.")
-                
-            return redirect ('main:product-detail', id=product.id, slug=slug)
+            next_url = request.POST.get('next') or reverse('main:product-list')
+            return redirect(next_url)
     else:
-        form = ReviewForm()
+        form = AuthenticationForm()
 
-    cart_product_form = CartAddProductForm()
-    product.views = F('views') + 1
-    product.save(update_fields=['views'])
-    product.refresh_from_db()
+    context = {'form': form, 'categories': categories}
+    return render(request, 'accounts/login.html', context)
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('main:product-list')
+
+
+def register_view(request):
+    categories = get_categories()
     
-    related_products = Product.objects.filter(
-        category=product.category, 
-        is_available=True
-    ).exclude(id=product.id).order_by('?')[:4]
+    if request.user.is_authenticated:
+        return redirect('main:product-list')
     
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('main:product-list')
+    else:
+        form = UserCreationForm()
+        
+    context = {'form': form, 'categories': categories}
+    return render(request, 'accounts/register.html', context)
+
+@login_required
+def profile_view(request):
+    """
+    Відображає основну сторінку профілю користувача.
+    """
     context = {
-        'product': product,
-        'related_products': related_products,
-        'categories': get_categories(),
-        'reviews': reviews,
-        'average_rating': average_rating, 
-        'form': form,
-        'cart_product_form': cart_product_form,
+        'active_tab': 'profile',
     }
-    return render(request, 'main/product-detail.html', context)
+    return render(request, 'accounts/profile.html', context)
+
+@login_required
+def order_history_view(request):
+    """
+    Відображає список усіх замовлень, зроблених поточним авторизованим користувачем.
+    """
+    orders = Order.objects.filter(user=request.user).order_by('-created')
+    context = {
+        'orders': orders,
+        'active_tab': 'orders',
+    }
+    
+    return render(request, 'accounts/order_history.html', context)
+
+class AdminAccessRedirectMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith('/admin/'):
+            user = request.user
+            
+            if not user.is_authenticated or not user.is_staff:
+                if request.path != reverse('admin:login'):
+                    return redirect('main:product-list')
+                    
+        return self.get_response(request)
