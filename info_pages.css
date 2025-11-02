@@ -1,0 +1,62 @@
+.about-page {
+    background-color: #fdeef4;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+
+.about-header {
+    color: #ad1457;
+    font-family: 'Poppins', sans-serif;
+}
+
+.about-text {
+    color: #1b1717;
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+
+.info-card {
+    max-width: 800px;
+    margin: 60px auto;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(173, 20, 87, 0.15);
+}
+
+.about-signature {
+    text-align: right;
+    margin-right: 20px;
+    font-style: italic;
+    color: #ad1457;
+}
+
+.contact-page {
+    background-color: #f5b1ed;
+}
+
+.contact-card {
+    border-top: 5px solid #fd00a4;
+}
+
+.contact-header {
+    color: #dd0ccb;
+}
+
+.contact-info p {
+    font-size: 1.1rem;
+    color: #ab077c;
+}
+
+.info-card {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.info-card h1 {
+    font-weight: 700;
+    margin-bottom: 25px;
+}
