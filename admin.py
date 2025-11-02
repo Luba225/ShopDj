@@ -1,46 +1,70 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from .models import Category, Product
+from django.http import HttpResponse
+from .models import Order, OrderItem
+import csv
+import datetime
 
-def image_tag_html(obj):
-    if obj.image:
-        return format_html(
-            '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 5px;" />'.format(obj.image.url)
-        )
-    return "Немає зображення"
-image_tag_html.short_description = 'Мініатюра'
+def export_to_csv(modeladmin, request, queryset):
+    """Експортує вибрані замовлення у формат CSV."""
+    opts = modeladmin.model._meta
+    
+    field_names = [field.name for field in opts.fields]
+    if 'user' in field_names: field_names.remove('user') 
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename=orders_{datetime.date.today()}.csv'
+    
+    writer = csv.writer(response)
+    writer.writerow(field_names)
+
+    for obj in queryset:
+        row = writer.writerow([getattr(obj, field) for field in field_names])
+    return response
+
+export_to_csv.short_description = 'Експортувати вибрані замовлення у CSV'
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    fields = ['product', 'price', 'quantity', 'get_cost'] 
+    readonly_fields = ['price', 'get_cost']
+    extra = 0
+
+    def get_cost(self, obj):
+        return f'{obj.get_cost()} грн'
+    get_cost.short_description = 'Вартість'
 
 
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "is_active", image_tag_html)
-    list_filter = ("is_active",)
-    search_fields = ("name",)
-    prepopulated_fields = {"slug": ("name", )}
-    list_editable = ("is_active",)
-
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "name", "category", "price", "is_available", 
-        "featured", "views", "created_at", image_tag_html
-    )
-    list_filter = ("category", "is_available", "featured", "created_at")
-    search_fields = ("name", "description")
-    prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "is_available", "featured")
-    ordering = ("-created_at",)
-    fieldsets = (
-        ('Основна інформація', {
-            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 
+        'first_name', 
+        'last_name', 
+        'email', 
+        'city', 
+        'paid', 
+        'created', 
+        'get_total_cost_display'
+    ]
+    list_filter = ['paid', 'created', 'updated']
+    list_editable = ['paid'] 
+    
+    fieldsets = [
+        ('Інформація про клієнта', {
+            'fields': ('first_name', 'last_name', 'email', 'phone')
         }),
-        ('Контент', {
-            'fields': ('description', 'detailed_description', 'image') 
+        ('Адреса доставки', {
+            'fields': ('city', 'address')
         }),
-        ('Статистика', {
-            'fields': ('views',),
-            'classes': ('collapse',)
+        ('Статус', {
+            'fields': ('paid',)
         }),
-    )
-    prepopulated_fields = {'slug': ('name',)}
+    ]
+    
+    actions = [export_to_csv]
+    inlines = [OrderItemInline]
+    
+    def get_total_cost_display(self, obj):
+        return f'{obj.get_total_cost()} грн'
+    
+    get_total_cost_display.short_description = 'Загальна вартість'

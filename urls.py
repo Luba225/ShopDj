@@ -1,12 +1,11 @@
 from django.urls import path
 from . import views
 
-app_name = 'main'
+app_name = 'orders'
 
 urlpatterns = [
-    path('', views.product_list, name='product-list'),
-    path('category/<slug:category_slug>/', views.product_list, name='product_list_by_category'),
-    path('product/<int:id>/<slug:slug>/', views.product_detail, name='product-detail'),
-    path('about/', views.about_view, name='about'),
-    path('contact/', views.contact_view, name='contact'),
+    path('create/', views.order_create, name='order_create'),
+    path('payment-start/<int:order_id>/', views.payment_start, name='payment_start'),
+    path('payment-complete/', views.payment_complete, name='payment_complete'),
+    path('payment-callback/', views.payment_callback, name='payment_callback'),
 ]
