@@ -1,5 +1,6 @@
 {% load static %}
-
+{% load shop_filters %}
+{% load shop_tags %}
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -7,49 +8,66 @@
     <title>{% block title %}Інтернет-магазин{% endblock %}</title>
     <link rel="icon" href="{% static 'main/favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'main/style.css' %}">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
-    
-    <div class="top-bar">
-      <div class="container top-bar-content">
-        <span class="scrolling-text" aria-hidden="true">
-            Постійні акції та знижки! При замовленні на 2000грн-доставка безкоштовно! 15% знижки імениннику!&nbsp;&nbsp;&nbsp;&nbsp;
-            ★&nbsp;&nbsp;&nbsp;&nbsp;
-            Постійні акції та знижки! При замовленні на 2000грн-доставка безкоштовно! 15% знижки імениннику!&nbsp;&nbsp;&nbsp;&nbsp;
-            ★
-        </span>
-      </div>
-    </div>
-    
-    <header>
-        <div class="container main-nav">
-            <a href="{% url 'main:product-list' %}" class="logo-link">
-                <img src="{% static 'main/favicon.ico' %}" alt="LadiesDream Logo" class="header-logo">
-                <span class="site-title">LadiesDream</span>
-            </a>
 
-            <nav class="primary-nav">
-                <ul>
-                    <li><a href="{% url 'main:product-list' %}">Каталог</a></li>
-                    <li><a href="#">Про нас</a></li>
-                    <li><a href="#">Контакти</a></li>
-                    <li><a href="#">Кошик 🛒</a></li> 
-                </ul>
-            </nav>
-            
-            <nav class="user-nav">
-                {% if user.is_authenticated %}
-                    {% if user.is_staff %}
-                        <a href="{% url 'admin:index' %}" class="btn-admin">Адмін панель</a>
+    <div class="top-bar">
+        <div class="container top-bar-content">
+            <span class="scrolling-text" aria-hidden="true">
+                Постійні акції та знижки! При замовленні на 2000 грн — доставка безкоштовно!
+                15% знижки імениннику! ★ Постійні акції та знижки! При замовленні на 2000 грн — доставка безкоштовно!
+                15% знижки імениннику! ★
+            </span>
+        </div>
+    </div>
+
+    <header>
+        <div class="container">
+            <div class="main-nav">
+                <a href="{% url 'main:product-list' %}" class="logo-link">
+                    <img src="{% static 'main/favicon.ico' %}" alt="LadiesDream Logo" class="header-logo">
+                    <span class="site-title">LadiesDream</span>
+                </a>
+
+                <nav class="primary-nav">
+                    <ul>
+                        <li><a href="{% url 'main:product-list' %}">Каталог</a></li>
+                        <li><a href="{% url 'main:about' %}" target="_blank">Про нас</a></li>
+                        <li><a href="{% url 'main:contact' %}" target="_blank">Контакти</a></li>
+                        <li>
+                            <a href="{% url 'cart:cart_detail' %}" class="nav-item cart-icon">
+                                <i class="fas fa-shopping-cart"></i>
+                                Кошик
+                                {% with total_items=cart|length %}
+                                    {% if total_items > 0 %}
+                                        <span class="cart-count">({{ total_items }})</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <nav class="user-nav">
+                    {% if user.is_authenticated %}
+                        {% if user.is_staff %}
+                            <a href="{% url 'admin:index' %}" class="btn-admin">Адмін панель</a>
+                        {% endif %}
+                        <a href="{% url 'accounts:profile' %}" class="btn-profile">Профіль</a>
+                        <a href="{% url 'accounts:logout' %}" class="btn-logout">Вийти</a>
+                    {% else %}
+                        <a href="{% url 'accounts:login' %}" class="btn-login">Вхід</a>
+                        <a href="{% url 'accounts:register' %}" class="btn-register">Реєстрація</a>
                     {% endif %}
-                    <a href="{% url 'accounts:profile' %}" class="btn-profile">Профіль</a> 
-                    <a href="{% url 'accounts:logout' %}" class="btn-logout">Вийти</a>
-                {% else %}
-                    <a href="{% url 'accounts:login' %}" class="btn-login">Вхід</a>
-                    <a href="{% url 'accounts:register' %}" class="btn-register">Реєстрація</a>
-                {% endif %}
-            </nav>
-            
+                </nav>
+            </div>
+
+            <div class="user-info-header">
+                <span>{% user_greeting user %}</span>
+                <span class="product-count">У каталозі: {% get_products_count %} товарів</span>
+            </div>
         </div>
     </header>
 
@@ -61,8 +79,9 @@
 
     <footer>
         <div class="container">
-            <p>© 2025 Ladies Dream. Всі права захищені.</p>
+            <p>© 2025 LadiesDream. Всі права захищені.</p>
         </div>
     </footer>
+
 </body>
 </html>

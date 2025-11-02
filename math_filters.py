@@ -17,3 +17,9 @@ def add(value, arg):
         return float(value) + float(arg)
     except (ValueError, TypeError):
         return ''
+    
+
+@register.filter
+def make_list(value):
+    """Повертає рядок як список символів. Наприклад, '123' -> ['1', '2', '3']"""
+    return list(value)

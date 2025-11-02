@@ -2,7 +2,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
 from django.contrib.auth.models import User
-
+from ckeditor_uploader.fields import RichTextUploadingField
 
 class Category(models.Model):
     name = models.CharField(max_length=100, db_index=True, verbose_name="Назва")
@@ -49,6 +49,10 @@ class Product(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+    detailed_description = RichTextUploadingField(
+        blank=True, 
+        null=True, 
+        verbose_name="Детальний опис")
 
     class Meta:
         ordering = ('name',)
@@ -62,8 +66,10 @@ class Product(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        """Повертає URL для детальної сторінки товару."""
-        return reverse('main:product-detail', args=[self.id, self.slug])
+        return reverse('main:product-detail', kwargs={
+            'id': self.id, 
+            'slug': self.slug
+        })
 
     def save(self, *args, **kwargs):
         if not self.slug:

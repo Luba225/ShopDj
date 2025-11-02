@@ -31,3 +31,16 @@ class ProductAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     list_editable = ("price", "is_available", "featured")
     ordering = ("-created_at",)
+    fieldsets = (
+        ('Основна інформація', {
+            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
+        }),
+        ('Контент', {
+            'fields': ('description', 'detailed_description', 'image') 
+        }),
+        ('Статистика', {
+            'fields': ('views',),
+            'classes': ('collapse',)
+        }),
+    )
+    prepopulated_fields = {'slug': ('name',)}
