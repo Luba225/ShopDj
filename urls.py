@@ -1,12 +1,12 @@
 from django.urls import path
-from . import views
-
-app_name = 'main'
+from . import views  
+app_name = "accounts"
 
 urlpatterns = [
-    path('', views.product_list, name='product-list'),
-    path('category/<slug:category_slug>/', views.product_list, name='product_list_by_category'),
-    path('product/<int:id>/<slug:slug>/', views.product_detail, name='product-detail'),
-    path('about/', views.about_view, name='about'),
-    path('contact/', views.contact_view, name='contact'),
+
+    path('login/', views.login_view, name="login"), 
+    path('register/', views.register_view, name="register"), 
+    path('profile/', views.profile_view, name="profile"), 
+    path('orders/', views.order_history_view, name='order_history'),
+    path('logout/', views.logout_view, name='logout'),    
 ]

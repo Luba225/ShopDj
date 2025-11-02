@@ -1,8 +1,9 @@
 {% extends 'main/base.html' %} 
-
+{% load static %}
 {% block title %}Реєстрація{% endblock %} 
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'main/auth.css' %}">
 <div class="auth-container">
     <h1>Реєстрація</h1>
     
