@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from orders.models import Order
 from orders.models import OrderItem
+from django.contrib import messages
+from .forms import UserRegistrationForm
 
 def get_categories():
     return Category.objects.filter(is_active=True).order_by('name')
@@ -38,22 +40,26 @@ def logout_view(request):
 
 
 def register_view(request):
-    categories = get_categories()
-    
+    """View для реєстрації нового користувача."""
     if request.user.is_authenticated:
         return redirect('main:product-list')
-    
+
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = UserRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, f"Вітаємо, {user.username}! Ви успішно зареєстровані.")
             return redirect('main:product-list')
+        else:
+            messages.error(request, "Будь ласка, виправте помилки у формі реєстрації.")
+            # for field, errors in form.errors.items():
+            #     for error in errors:
+            #         messages.error(request, f"{form.fields[field].label}: {error}")
     else:
-        form = UserCreationForm()
-        
-    context = {'form': form, 'categories': categories}
-    return render(request, 'accounts/register.html', context)
+        form = UserRegistrationForm()
+
+    return render(request, 'accounts/register.html', {'form': form})
 
 @login_required
 def profile_view(request):

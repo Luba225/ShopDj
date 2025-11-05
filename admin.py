@@ -1,43 +1,47 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from django.utils.safestring import mark_safe
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Profile
 
 class ProfileInline(admin.StackedInline):
     model = Profile
-    can_delete = False
-    verbose_name_plural = 'Профіль'
-    
-    # Виводимо аватар
-    fields = ('avatar', 'avatar_preview')
-    readonly_fields = ('avatar_preview',)
-
-    def avatar_preview(self, obj):
-        if obj.avatar:
-            return mark_safe(f'<img src="{obj.avatar.url}" style="max-height: 100px; border-radius: 5px;" />')
-        return "Немає зображення"
-    avatar_preview.short_description = "Мініатюра"
+    fields = ('avatar', 'bio', 'birth_date', 'location', 'website', 'created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at')
+    classes = ('collapse',)
 
 
 class UserAdmin(BaseUserAdmin):
-    inlines = (ProfileInline,)
+    inlines = [ProfileInline]
+    list_display = ('username', 'email', 'first_name', 'last_name', 'get_location', 'is_staff')
 
-    list_display = (
-        'username', 
-        'email', 
-        'first_name', 
-        'last_name', 
-        'is_staff', 
-        'profile_avatar_thumbnail'
+    def get_location(self, obj):
+        return obj.profile.location if hasattr(obj, 'profile') else '-'
+    get_location.short_description = 'Місто'
+
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'location', 'birth_date', 'has_avatar', 'created_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = ('user__username', 'user__email', 'location', 'bio')
+    readonly_fields = ('created_at', 'updated_at')
+
+    fieldsets = (
+        ('Користувач', {
+            'fields': ('user',)
+        }),
+        ('Основна інформація', {
+            'fields': ('avatar', 'bio', 'birth_date', 'location', 'website')
+        }),
+        ('Системна інформація', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
-    
-    def profile_avatar_thumbnail(self, obj):
-        if hasattr(obj, 'profile') and obj.profile.avatar:
-            return mark_safe(f'<img src="{obj.profile.avatar.url}" width="30" height="30" style="border-radius: 50%; object-fit: cover;" />')
-        return "-"
-    
-    profile_avatar_thumbnail.short_description = "Аватар"
+
+    def has_avatar(self, obj):
+        return '✓' if obj.avatar else '✗'
+    has_avatar.short_description = 'Аватар'
 
 
 admin.site.unregister(User)
