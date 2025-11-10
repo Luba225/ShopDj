@@ -3,25 +3,30 @@ from django.views.decorators.http import require_POST
 from main.models import Product
 from .cart import Cart
 from .forms import CartAddProductForm
+from decimal import Decimal
+
+
 
 @require_POST
 def cart_add(request, product_id):
-    """
-    Додає товар до кошика. Вимагає POST-запиту.
-    """
     cart = Cart(request)
     product = get_object_or_404(Product, id=product_id)
     form = CartAddProductForm(request.POST)
-
     if form.is_valid():
-        cd = form.cleaned_data
-        cart.add(
-            product=product,
-            quantity=cd['quantity'],
-            override_quantity=cd['override']
-        )
-    return redirect('cart:cart_detail')
+        cleaned_data = form.cleaned_data
+        quantity = cleaned_data['quantity']
+        override_quantity = cleaned_data['override']
+        final_price = product.price 
+        final_price = product.get_current_price()
 
+        cart.add(
+            product=product, 
+            quantity=quantity, 
+            override_quantity=override_quantity, 
+            price=final_price
+        )
+        
+    return redirect('cart:cart_detail')
 
 @require_POST
 def cart_remove(request, product_id):
