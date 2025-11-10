@@ -1,46 +1,31 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from .models import Category, Product
+from .models import Discount, PromoCode, PromoCodeUsage
 
-def image_tag_html(obj):
-    if obj.image:
-        return format_html(
-            '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 5px;" />'.format(obj.image.url)
-        )
-    return "Немає зображення"
-image_tag_html.short_description = 'Мініатюра'
+@admin.register(Discount)
+class DiscountAdmin(admin.ModelAdmin):
+    list_display = ('product', 'discount_type', 'value', 'start_date', 'end_date', 'is_active', 'min_quantity')
+    list_filter = ('discount_type', 'is_active', 'start_date', 'end_date')
+    search_fields = ('product__name',)
+    ordering = ('-created_at',)
+
+class PromoCodeUsageInline(admin.TabularInline):
+    model = PromoCodeUsage
+    extra = 0
+    readonly_fields = ('user', 'order_amount', 'discount_amount', 'used_at')
+    can_delete = False
+
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_type', 'value', 'start_date', 'end_date', 'is_active', 'usage_limit', 'used_count')
+    list_filter = ('discount_type', 'is_active', 'start_date', 'end_date')
+    search_fields = ('code',)
+    readonly_fields = ('used_count', 'created_at', 'created_by')
+    inlines = [PromoCodeUsageInline]
 
 
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "is_active", image_tag_html)
-    list_filter = ("is_active",)
-    search_fields = ("name",)
-    prepopulated_fields = {"slug": ("name", )}
-    list_editable = ("is_active",)
-
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = (
-        "id", "name", "category", "price", "is_available", 
-        "featured", "views", "created_at", image_tag_html
-    )
-    list_filter = ("category", "is_available", "featured", "created_at")
-    search_fields = ("name", "description")
-    prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "is_available", "featured")
-    ordering = ("-created_at",)
-    fieldsets = (
-        ('Основна інформація', {
-            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
-        }),
-        ('Контент', {
-            'fields': ('description', 'detailed_description', 'image') 
-        }),
-        ('Статистика', {
-            'fields': ('views',),
-            'classes': ('collapse',)
-        }),
-    )
-    prepopulated_fields = {'slug': ('name',)}
+@admin.register(PromoCodeUsage)
+class PromoCodeUsageAdmin(admin.ModelAdmin):
+    list_display = ('promo_code', 'user', 'order_amount', 'discount_amount', 'used_at')
+    list_filter = ('used_at', 'promo_code')
+    search_fields = ('promo_code__code', 'user__username')
+    ordering = ('-used_at',)

@@ -1,129 +1,184 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.db.models import F, Case, When, IntegerField
-from .models import Product, Category
-from django.db.models import Q, F
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Avg
-from reviews.forms import ReviewForm
-from cart.forms import CartAddProductForm
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from .models import PromoCode
+from main.models import Product
+from .models import Discount, PromoCode, PromoCodeUsage
+from .forms import DiscountForm, PromoCodeForm, ApplyPromoCodeForm
 
+@staff_member_required
+def add_discount(request, product_id):
+    """Додавання знижки до товару"""
+    product = get_object_or_404(Product, id=product_id)
 
-def about_view(request):
-    """Сторінка 'Про нас'."""
-    return render(request, 'main/about.html')
-
-def contact_view(request):
-    """Сторінка 'Контакти'."""
-    return render(request, 'main/contact.html')
-
-def get_categories():
-    return Category.objects.filter(is_active=True).order_by('name')
-
-
-def product_list(request, category_slug=None):
-    """
-    Відображає список товарів з фільтрацією, пошуком, сортуванням та пагінацією.
-    """
-    categories = get_categories()
-    products = Product.objects.filter(is_available=True)
-    category = None
-    cart_product_form = CartAddProductForm()
-
-    if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
-
-    search_query = request.GET.get('q')
-    if search_query:
-        products = products.filter(
-            Q(name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(category__name__icontains=search_query)
-        ).distinct()
-
-    sort_by = request.GET.get('sort', 'new')
-    
-    if sort_by == 'new':
-        products = products.order_by('-created_at')
-    elif sort_by == 'old':
-        products = products.order_by('created_at')
-    elif sort_by == 'popular':
-        products = products.order_by('-views')
-    elif sort_by == 'price_low':
-        products = products.order_by('price')
-    elif sort_by == 'price_high':
-        products = products.order_by('-price')
-    elif sort_by == 'name':
-        products = products.order_by('name')
-
-
-    paginator = Paginator(products, 9)
-    page_number = request.GET.get('page')
-    
-    try:
-        products_on_page = paginator.page(page_number)
-    except PageNotAnInteger:
-        products_on_page = paginator.page(1)
-    except EmptyPage:
-        products_on_page = paginator.page(paginator.num_pages)
-
-    context = {
-        'products': products_on_page, 
-        'page_obj': products_on_page, 
-        'paginator': paginator,
-        'categories': categories,
-        'category': category,
-        'current_sort': sort_by,
-        'search_query': search_query,
-        'cart_product_form': cart_product_form,
-    }
-    return render(request, 'main/product-list.html', context)
-
-
-def product_detail(request, id, slug):
-    """
-    Відображає деталі товару, збільшує лічильник переглядів та показує схожі товари.
-    """
-    product = get_object_or_404(Product, id=id, slug=slug, is_available=True)
-    reviews = product.reviews.select_related('user').all()
-    average_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-    if request.method == 'POST' and request.user.is_authenticated:
-        form = ReviewForm(request.POST)
+    if request.method == 'POST':
+        form = DiscountForm(request.POST)
         if form.is_valid():
-            new_review = form.save(commit=False)
-            new_review.product = product
-            new_review.user = request.user
-            
-            try:
-                new_review.save()
-                messages.success(request, "Ваш відгук успішно додано!")
-            except Exception:
-                messages.error(request, "Ви вже залишили відгук на цей товар. Ви можете залишити лише один.")
-                
-            return redirect ('main:product-detail', id=product.id, slug=slug)
+            discount = form.save(commit=False)
+            discount.product = product
+            discount.save()
+            messages.success(request, f"✅ Знижку для «{product.name}» успішно створено!")
+            return redirect('discounts:product_discounts', product_id=product.id)
+        else:
+            messages.error(request, "⚠️ Перевірте правильність заповнення форми.")
     else:
-        form = ReviewForm()
+        form = DiscountForm()
 
-    cart_product_form = CartAddProductForm()
-    product.views = F('views') + 1
-    product.save(update_fields=['views'])
-    product.refresh_from_db()
-    
-    related_products = Product.objects.filter(
-        category=product.category, 
-        is_available=True
-    ).exclude(id=product.id).order_by('?')[:4]
-    
+    return render(request, 'discounts/add_discount.html', {'form': form, 'product': product})
+
+
+@staff_member_required
+def product_discounts(request, product_id):
+    """Список активних знижок для товару"""
+    product = get_object_or_404(Product, id=product_id)
+    discounts = product.discounts.all().order_by('-created_at')
+
     context = {
         'product': product,
-        'related_products': related_products,
-        'categories': get_categories(),
-        'reviews': reviews,
-        'average_rating': average_rating, 
-        'form': form,
-        'cart_product_form': cart_product_form,
+        'discounts': discounts,
     }
-    return render(request, 'main/product-detail.html', context)
+    return render(request, 'discounts/product_discounts.html', context)
+
+
+@staff_member_required
+def edit_discount(request, discount_id):
+    """Редагування існуючої знижки"""
+    discount = get_object_or_404(Discount, id=discount_id)
+    product = discount.product
+
+    if request.method == 'POST':
+        form = DiscountForm(request.POST, instance=discount)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ Знижку успішно оновлено!")
+            return redirect('discounts:product_discounts', product_id=product.id)
+    else:
+        form = DiscountForm(instance=discount)
+
+    return render(request, 'discounts/add_discount.html', {'form': form, 'product': product})
+
+
+@staff_member_required
+def delete_discount(request, discount_id):
+    """Видалення знижки"""
+    discount = get_object_or_404(Discount, id=discount_id)
+    product_id = discount.product.id
+    discount.delete()
+    messages.success(request, "🗑️ Знижку видалено.")
+    return redirect('discounts:product_discounts', product_id=product_id)
+
+
+@staff_member_required
+def create_promo_code(request):
+    """Створення нового промокоду"""
+    if request.method == 'POST':
+        form = PromoCodeForm(request.POST)
+        if form.is_valid():
+            promo = form.save(commit=False)
+            promo.created_by = request.user
+            promo.save()
+            messages.success(request, f"🎁 Промокод «{promo.code}» успішно створено!")
+            return redirect('discounts:promo_code_list')
+        else:
+            messages.error(request, "⚠️ Перевірте правильність введених даних.")
+    else:
+        form = PromoCodeForm()
+
+    return render(request, 'discounts/promo_code_form.html', {'form': form})
+
+
+@staff_member_required
+def promo_code_list(request):
+    """Список промокодів"""
+    promo_codes = PromoCode.objects.all().order_by('-created_at')
+
+    query = request.GET.get('q')
+    if query:
+        promo_codes = promo_codes.filter(code__icontains=query)
+
+    filter_status = request.GET.get('status')
+    if filter_status == 'active':
+        promo_codes = promo_codes.filter(is_active=True)
+    elif filter_status == 'inactive':
+        promo_codes = promo_codes.filter(is_active=False)
+
+    context = {
+        'promo_codes': promo_codes,
+    }
+    return render(request, 'discounts/promo_code_list.html', context)
+
+
+@login_required
+def apply_promo_code(request):
+    """Застосування промокоду"""
+    if request.method == 'POST':
+        form = ApplyPromoCodeForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data['promo_code']
+            try:
+                promo = PromoCode.objects.get(code=code)
+            except PromoCode.DoesNotExist:
+                messages.error(request, "❌ Промокод не знайдено.")
+                return redirect(request.META.get('HTTP_REFERER', '/'))
+
+            if not promo.is_valid():
+                messages.error(request, "⏰ Цей промокод більше не дійсний.")
+                return redirect(request.META.get('HTTP_REFERER', '/'))
+
+            request.session['promo_code'] = promo.code
+            messages.success(request, f"✅ Промокод «{promo.code}» застосовано!")
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+        else:
+            messages.error(request, "⚠️ Перевірте правильність введення коду.")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+def remove_promo_code(request):
+    """Видалення промокоду з сесії"""
+    if 'promo_code' in request.session:
+        del request.session['promo_code']
+        messages.info(request, "🎀 Промокод видалено.")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@staff_member_required
+def promo_code_stats(request, code_id):
+    """Статистика використання промокоду"""
+    promo = get_object_or_404(PromoCode, id=code_id)
+    usages = PromoCodeUsage.objects.filter(promo_code=promo)
+
+    total_discount = sum(u.discount_amount for u in usages)
+    total_orders = len(usages)
+
+    context = {
+        'promo': promo,
+        'usages': usages,
+        'total_discount': total_discount,
+        'total_orders': total_orders,
+    }
+    return render(request, 'discounts/promo_code_stats.html', context)
+
+def apply_promo_code(request):
+    if request.method == 'POST':
+        code = request.POST.get('promo_code', '').strip()
+
+        if code:
+            try:
+                promo = PromoCode.objects.get(code__iexact=code, is_active=True)
+                request.session['promo_discount'] = float(promo.value)
+                request.session['promo_code'] = promo.code
+
+                messages.success(request, f'Промокод "{promo.code}" застосовано! Знижка {promo.value}%')
+
+            except PromoCode.DoesNotExist:
+                request.session.pop('promo_discount', None)
+                request.session.pop('promo_code', None)
+                messages.error(request, 'Невірний промокод або він не активний.')
+
+        else:
+            messages.error(request, 'Будь ласка, введіть промокод.')
+
+    return redirect('orders:order_create')
