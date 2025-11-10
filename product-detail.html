@@ -8,6 +8,13 @@
 <div class="product-detail-container">
 
     <div class="product-images">
+        {% if active_discount %}
+        <div class="discount-banner animated-discount-ribbon">
+            <span class="discount-text">
+                АКЦІЯ! -{{ active_discount.value }}{% if active_discount.discount_type == 'percentage' %}%{% else %} грн{% endif %}
+            </span>
+        </div>
+        {% endif %}
         {% if product.image %}
             <img src="{{ product.image.url }}" alt="{{ product.name }}">
         {% else %}
@@ -29,12 +36,31 @@
                 <span class="rating-text"> ({{ reviews.count }} відгуків)</span>
             {% endwith %}
         </div>
-
-        <p class="price">{{ product.price }} грн</p>
-
+        
+        {% if is_on_sale %}
+        <p class="price-detail-display">
+            <span class="old-price">Ціна: {{ base_price|floatformat:2 }} грн</span> 
+            
+            <span class="discounted-price-detail">
+                {{ final_price|floatformat:2 }} грн
+            </span>
+            
+            {% if active_discount %}
+                <span class="discount-badge-detail">
+                    -{{ active_discount.value }}{% if active_discount.discount_type == 'percentage' %}%{% else %} грн{% endif %}
+                </span>
+            {% elif product.discount_percent and product.discount_percent > 0 %}
+                <span class="discount-badge-detail">-{{ product.discount_percent }}%</span>
+            {% endif %}
+            
+        </p>
+        {% else %}
+        <p class="price-detail-display">
+            <span class="current-price">{{ product.price|floatformat:2 }} грн</span>
+        </p>
+        {% endif %}
         <p class="description">{{ product.description|linebreaks }}</p>
 
-        {# ФОРМА ДОДАВАННЯ ДО КОШИКА #}
         <form action="{% url 'cart:cart_add' product.id %}" method="post" class="add-to-cart-form">
             {% csrf_token %}
 
@@ -76,136 +102,10 @@
     
     <hr>
     
-
     {% for review in reviews %}
-        <div class="review-item">
-            <div class="review-header">
-                {# ВИПРАВЛЕНО: З review.user.username на review.author.username #}
-                <span class="review-user-name">{{ review.author.username }}</span> 
-                <span class="review-date">{{ review.created_at|date:"d.m.Y H:i" }}</span>
-            </div>
-            
-            <div class="review-rating">
-                <span class="display-rating">
-                    {% for i in "12345"|make_list %}
-                        {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
-                    {% endfor %}
-                </span>
-            </div>
-            
-            {% if review.title %}
-                <p class="review-title"><strong>{{ review.title }}</strong></p>
-            {% endif %}
-            
-            {% if review.advantages %}
-            <div class="review-pros">
-                <i class="fas fa-thumbs-up"></i> <strong>Переваги:</strong> {{ review.advantages|linebreaks }}
-            </div>
-            {% endif %}
-
-            {% if review.disadvantages %}
-            <div class="review-cons">
-                <i class="fas fa-thumbs-down"></i> <strong>Недоліки:</strong> {{ review.disadvantages|linebreaks }}
-            </div>
-            {% endif %}
-
-            <p class="review-content">{{ review.content|safe }}</p>
-
-            <hr>
-        </div>
     {% empty %}
-        <p>Наразі немає відгуків про цей товар. Будьте першим!</p>
+    <p>Наразі немає відгуків про цей товар. Будьте першим!</p>
     {% endfor %}
 
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-
-    .btn-review-add {
-        background-color: var(--blue); 
-        color: white;
-        padding: 10px 20px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: background-color 0.3s, transform 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .btn-review-add:hover {
-        background-color: #004a99;
-        color: white;
-        transform: translateY(-2px);
-    }
-    
-    .reviews-section {
-        margin-top: 40px;
-        padding-top: 20px;
-        border-top: 1px solid var(--light-gray);
-    }
-
-    .review-item {
-        border: 1px solid var(--light-gray);
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-    .review-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        font-size: 0.9em;
-    }
-
-    .review-user-name {
-        font-weight: bold;
-        color: var(--dark-gray);
-    }
-
-    .review-date {
-        color: var(--medium-gray);
-    }
-    
-    .review-rating .display-rating {
-        font-size: 1.2em;
-        color: gold;
-        margin-bottom: 10px;
-        display: block;
-    }
-
-    .review-title {
-        font-size: 1.1em;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        color: var(--dark-gray);
-    }
-
-    .review-pros, .review-cons {
-        padding: 8px 12px;
-        border-radius: 5px;
-        margin-bottom: 5px;
-        font-size: 0.95em;
-    }
-
-    .review-pros {
-        background-color: #e6ffe6;
-        color: #006400;
-    }
-
-    .review-cons {
-        background-color: #ffe6e6;
-        color: #8b0000;
-    }
-    
-    .review-content {
-        margin-top: 15px;
-        line-height: 1.6;
-    }
-</style>
 {% endblock %}

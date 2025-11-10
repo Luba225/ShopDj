@@ -24,16 +24,16 @@ class CategoryAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "id", "name", "category", "price", "is_available", 
-        "featured", "views", "created_at", image_tag_html
+        "featured", "views", "created_at", image_tag_html, "supplier"
     )
-    list_filter = ("category", "is_available", "featured", "created_at")
+    list_filter = ("category", "supplier", "is_available", "featured", "created_at")
     search_fields = ("name", "description")
     prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "is_available", "featured")
+    list_editable = ("price", "is_available", "featured", "supplier")
     ordering = ("-created_at",)
     fieldsets = (
         ('Основна інформація', {
-            'fields': ('name', 'slug', 'category', 'price', 'is_available', 'featured')
+            'fields': ('name', 'slug', 'category', 'supplier', 'price', 'is_available', 'featured')
         }),
         ('Контент', {
             'fields': ('description', 'detailed_description', 'image') 

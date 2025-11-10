@@ -3,66 +3,151 @@
 {% load math_filters %}
 {% load shop_tags %}
 {% load shop_filters %}
-
+<link rel="stylesheet" href="{% static 'main/style.css' %}">
 {% block content %}
 <h2 class="section-header">Каталог товарів</h2>
-<form method="get" class="search-form">
-    <label for="q">Пошук:</label>
-    <input type="text" name="q" id="q" value="{{ request.GET.q }}" placeholder="Пошук товарів...">
-    <button type="submit" class="btn-search">🔍</button>
-    <a href="{% url 'main:product-list' %}" class="btn-reset">Скинути</a>
-</form>
 
-<div class="sort-buttons">
-    <span>Сортувати за:</span>
-    <a href="?sort=price_asc" class="btn-sort {% if request.GET.sort == 'price_asc' %}active{% endif %}">Ціна ↑</a>
-    <a href="?sort=price_desc" class="btn-sort {% if request.GET.sort == 'price_desc' %}active{% endif %}">Ціна ↓</a>
-    <a href="?sort=views" class="btn-sort {% if request.GET.sort == 'views' %}active{% endif %}">Популярні</a>
-</div>
-<div class="product-list">
-    {% for product in page_obj %}
-        <div class="product-card">
-            {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}">
-            {% endif %}
-            {% if product.is_featured %}
-                <div class="featured-badge">Рекомендовано!</div>
-            {% endif %}
-            <h3><a href="{% url 'main:product-detail' id=product.id slug=product.slug %}">{{ product.name }}</a></h3>
-            <p>{{ product.description|truncatewords:15 }}</p>
-            <div class="price">{{ product.price }} грн</div>
-            <div class="updated">Переглядів: {{ product.views }}</div>
-            <form action="{% url 'cart:cart_add' product.id %}" method="post" class="add-to-cart-list-form">
-               {% csrf_token %}
-               <input type="hidden" name="quantity" value="1">
-               {{ cart_product_form.override }}
-               <button type="submit" class="add-to-cart">
-                  <i class="fas fa-shopping-cart"></i> Додати в кошик
-               </button>
-            </form>
+<aside class="sidebar" id="sidebar">
+    <div class="dropdown-filter">
+        <button class="dropdown-toggle" onclick="toggleDropdown('supplier-dropdown')">
+            Виробники
+        </button>
+        <div class="dropdown-content" id="supplier-dropdown">
+            {% for supplier in suppliers %}
+                <a href="?supplier={{ supplier }}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+                    class="{% if selected_supplier == supplier %}active{% endif %}">
+                    {{ supplier }}
+                </a>
+            {% endfor %}
+            <a href="?{% if selected_category %}category={{ selected_category }}{% endif %}"
+           class="clear-filter">Всі виробники</a>
         </div>
-    {% empty %}
-        <p>Немає товарів 😢</p>
-    {% endfor %}
-</div>
+    </div> 
 
-<div class="pagination">
-    <ul class="pagination-list">
-        {% if page_obj.has_previous %}
-            <li><a href="?page={{ page_obj.previous_page_number }}">«</a></li>
-        {% endif %}
+    <div class="dropdown-filter">
+        <button class="dropdown-toggle" onclick="toggleDropdown('category-dropdown')">
+            Категорії
+        </button>
+        <div class="dropdown-content" id="category-dropdown">
+            {% for category in categories %}
+                <a href="{% url 'main:product-list' %}?category={{ category.name }}{% if selected_supplier %}&supplier={{ selected_supplier }}{% endif %}"
+                   class="{% if selected_category == category.name %}active{% endif %}">
+                    {{ category.name }}
+                </a>
+            {% endfor %}
+            <a href="{% url 'main:product-list' %}{% if selected_supplier %}?supplier={{ selected_supplier }}{% endif %}"
+               class="clear-filter">
+                Всі категорії
+            </a>
+        </div>
+    </div>
+</aside>
 
-        {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-                <li class="active"><span>{{ num }}</span></li>
-            {% else %}
-                <li><a href="?page={{ num }}">{{ num }}</a></li>
+<div class="main-content">
+    {% if selected_category or selected_supplier %}
+        <div class="active-filters-info">
+            Фільтри:
+            {% if selected_category %}
+                Категорія: <strong>{{ selected_category }}</strong> |
             {% endif %}
-        {% endfor %}
+            {% if selected_supplier %}
+                Постачальник: <strong>{{ selected_supplier }}</strong>
+            {% endif %}
+            <a href="{% url 'main:product-list' %}" class="reset-link">Скинути всі</a>
+        </div>
+    {% endif %}
 
-        {% if page_obj.has_next %}
-            <li><a href="?page={{ page_obj.next_page_number }}">»</a></li>
-        {% endif %}
-    </ul>
+    <form method="get" class="search-form">
+        <label for="q">Пошук:</label>
+        <input type="text" name="q" id="q" value="{{ request.GET.q }}" placeholder="Пошук товарів...">
+        <button type="submit" class="btn-search">🔍</button>
+        <a href="{% url 'main:product-list' %}" class="btn-reset">Скинути</a>
+    </form>
+
+    <div class="sort-buttons">
+        <span>Сортувати за:</span>
+        <a href="?sort=price_asc" class="btn-sort {% if request.GET.sort == 'price_asc' %}active{% endif %}">Ціна ↑</a>
+        <a href="?sort=price_desc" class="btn-sort {% if request.GET.sort == 'price_desc' %}active{% endif %}">Ціна ↓</a>
+        <a href="?sort=views" class="btn-sort {% if request.GET.sort == 'views' %}active{% endif %}">Популярні</a>
+    </div>
+
+    <div class="product-list">
+        {% for product in page_obj %}
+            <div class="product-card">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                {% endif %}
+
+                {% if product.is_featured %}
+                    <div class="featured-badge">Рекомендовано!</div>
+                {% endif %}
+
+                {# --- КОРЕКТНА ЛОГІКА БЕЙДЖІВ: Пріоритет Знижці --- #}
+                {% if product.discount_percent and product.discount_percent > 0 %}
+                    <div class="discount-badge-list">
+                        -{{ product.discount_percent }}% 🏷️
+                    </div>
+                {% elif product.is_featured %}
+                    <div class="featured-badge">Рекомендовано!</div>
+                {% endif %}
+                {# --- КІНЕЦЬ ЛОГІКИ БЕЙДЖІВ --- #}
+
+                <h3>
+                    <a href="{% url 'main:product-detail' id=product.id slug=product.slug %}">
+                        {{ product.name }}
+                    </a>
+                </h3>
+
+                <p>{{ product.description|truncatewords:15 }}</p>
+                
+                {# ВИДАЛЕНО: Тут був старий div class="price" #}
+
+                {# --- ВІДОБРАЖЕННЯ ЦІНИ ЗІ ЗНИЖКОЮ --- #}
+                <div class="price-container">
+                    {% if product.discount_percent and product.discount_percent > 0 %}
+                        <span class="old-price">{{ product.price }} грн</span>
+                        <span class="current-price discounted">
+                            {{ product.get_discounted_price }} грн
+                        </span>
+                    {% else %}
+                        <span class="current-price">{{ product.price }} грн</span>
+                    {% endif %}
+                </div>
+                {# --- КІНЕЦЬ ВІДОБРАЖЕННЯ ЦІНИ --- #}
+                <div class="updated">Переглядів: {{ product.views }}</div>
+
+                <form action="{% url 'cart:cart_add' product.id %}" method="post" class="add-to-cart-list-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="quantity" value="1">
+                    {{ cart_product_form.override }}
+                    <button type="submit" class="add-to-cart">
+                        <i class="fas fa-shopping-cart"></i> Додати в кошик
+                    </button>
+                </form>
+            </div>
+        {% empty %}
+            <p>Немає товарів 😢</p>
+        {% endfor %}
+    </div>
+
+    <div class="pagination">
+        <ul class="pagination-list">
+            {% if page_obj.has_previous %}
+                <li><a href="?page={{ page_obj.previous_page_number }}">«</a></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="active"><span>{{ num }}</span></li>
+                {% else %}
+                    <li><a href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li><a href="?page={{ page_obj.next_page_number }}">»</a></li>
+            {% endif %}
+        </ul>
+    </div>
 </div>
 {% endblock %}
